@@ -7,7 +7,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 
 # ========= الإعدادات =========
 # حط التوكن هنا من @BotFather
-BOT_TOKEN = os.getenv("BOT_TOKEN") or "ضع_التوكن_هنا"
+BOT_TOKEN = os.getenv("BOT_TOKEN") or "8124480552:AAHLPnKnH2_kuD58HI7SrhYrp3uEPdrrIcU"
 
 # حط الـ ID تبعك هنا - جيبه من @userinfobot
 # ID تبعك من الصورة: 424589091
@@ -353,7 +353,7 @@ def keep_alive():
         port = int(os.getenv("PORT", 10000))
         app_flask = Flask(__name__)
         @app_flask.route('/')
-        def home(): return "Bot is alive 🩺 - Medical Bot"
+        def home(): return "Bot is alive 🩺 - Medical Bot Working"
         @app_flask.route('/health')
         def health(): return "OK"
         Thread(target=lambda: app_flask.run(host='0.0.0.0', port=port), daemon=True).start()
@@ -364,12 +364,8 @@ def keep_alive():
 def main():
     init_db()
     keep_alive()
-    if BOT_TOKEN == "ضع_التوكن_هنا":
-        print("⚠️ غير التوكن في أول الملف أو حط متغير بيئة BOT_TOKEN - البوت مش هيشتغل")
-        # نخلي السيرفر شغال عشان Render ما يعتبره failed
-        import time
-        while True:
-            time.sleep(60)
+    if BOT_TOKEN == "ضع_التوكن_هنا" or len(BOT_TOKEN) < 20:
+        print("⚠️ غير التوكن في أول الملف أو حط متغير بيئة BOT_TOKEN")
         return
     
     app = Application.builder().token(BOT_TOKEN).build()
