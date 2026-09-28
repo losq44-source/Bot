@@ -353,7 +353,7 @@ def keep_alive():
         port = int(os.getenv("PORT", 10000))
         app_flask = Flask(__name__)
         @app_flask.route('/')
-        def home(): return "Bot is alive 🩺"
+        def home(): return "Bot is alive 🩺 - Medical Bot"
         @app_flask.route('/health')
         def health(): return "OK"
         Thread(target=lambda: app_flask.run(host='0.0.0.0', port=port), daemon=True).start()
@@ -365,7 +365,11 @@ def main():
     init_db()
     keep_alive()
     if BOT_TOKEN == "ضع_التوكن_هنا":
-        print("⚠️ غير التوكن في أول الملف أو حط متغير بيئة BOT_TOKEN")
+        print("⚠️ غير التوكن في أول الملف أو حط متغير بيئة BOT_TOKEN - البوت مش هيشتغل")
+        # نخلي السيرفر شغال عشان Render ما يعتبره failed
+        import time
+        while True:
+            time.sleep(60)
         return
     
     app = Application.builder().token(BOT_TOKEN).build()
