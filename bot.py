@@ -353,11 +353,11 @@ def keep_alive():
         port = int(os.getenv("PORT", 10000))
         app_flask = Flask(__name__)
         @app_flask.route('/')
-        def home(): return "Bot is alive 🩺 - Medical Bot Working"
+        def home(): return "Bot is alive - Medical Bot Working"
         @app_flask.route('/health')
         def health(): return "OK"
         Thread(target=lambda: app_flask.run(host='0.0.0.0', port=port), daemon=True).start()
-        print(f"🌐 Keep alive server on port {port}")
+        print(f"Keep alive server on port {port}")
     except Exception as e:
         print(f"Keep alive error: {e}")
 
@@ -365,7 +365,7 @@ def main():
     init_db()
     keep_alive()
     if BOT_TOKEN == "ضع_التوكن_هنا" or len(BOT_TOKEN) < 20:
-        print("⚠️ غير التوكن في أول الملف أو حط متغير بيئة BOT_TOKEN")
+        print("غير التوكن في اول الملف")
         return
     
     app = Application.builder().token(BOT_TOKEN).build()
