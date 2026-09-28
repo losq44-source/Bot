@@ -2,6 +2,7 @@ import os
 from flask import Flask
 from threading import Thread
 
+# افتح البورت فوراً عشان Render ما يعطي خطأ
 app_flask = Flask(__name__)
 @app_flask.route('/')
 def home(): return "OK", 200
@@ -9,6 +10,7 @@ def home(): return "OK", 200
 def keep_alive():
     port = int(os.getenv("PORT", 10000))
     Thread(target=lambda: app_flask.run(host='0.0.0.0', port=port, debug=False, use_reloader=False), daemon=True).start()
+
 keep_alive()
 
 from telegram import Update
@@ -22,6 +24,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    print("Bot started - waiting for /start")
     app.run_polling()
 
 if __name__ == "__main__":
