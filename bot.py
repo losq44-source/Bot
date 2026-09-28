@@ -347,16 +347,19 @@ async def cancel_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ========= التشغيل =========
 def keep_alive():
-    """سيرفر صغير عشان الاستضافة المجانية ما تطفي البوت - يشتغل على Render"""
     try:
         from flask import Flask
         from threading import Thread
+        port = int(os.getenv("PORT", 10000))
         app_flask = Flask(__name__)
         @app_flask.route('/')
         def home(): return "Bot is alive 🩺"
-        port = int(os.environ.get("PORT", 10000))
-        Thread(target=lambda: app_flask.run(host='0.0.0.0', port=port)).start()
-    except: pass
+        @app_flask.route('/health')
+        def health(): return "OK"
+        Thread(target=lambda: app_flask.run(host='0.0.0.0', port=port), daemon=True).start()
+        print(f"🌐 Keep alive server on port {port}")
+    except Exception as e:
+        print(f"Keep alive error: {e}")
 
 def main():
     init_db()
@@ -382,7 +385,6 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
-    app.add_handler(CommandHandler("admin424589091", admin_panel))
     app.add_handler(upload_conv)
     app.add_handler(CallbackQueryHandler(button_handler, pattern="^(main_menu|list_specialties|spec_|mat_|file_|about|search_info|list_courses|courses_)"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_handler))
@@ -392,4 +394,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
