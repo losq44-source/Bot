@@ -1,8 +1,15 @@
 import os
+import asyncio
 from flask import Flask
 from threading import Thread
 
-# === 1. افتح البورت فوراً ل Render - لازم يكون أول شي ===
+# === Fix event loop for Python 3.12 on Render ===
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
+
+# === 1. افتح البورت فوراً ===
 app_flask = Flask(__name__)
 @app_flask.route('/')
 def home(): return "Bot is alive - Step 1 OK", 200
@@ -16,7 +23,7 @@ def keep_alive():
 
 keep_alive()
 
-# === 2. البوت - نسخة مصغرة خطوة 1: بس لوحة تحكم ===
+# === 2. البوت - نسخة مصغرة ===
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
@@ -42,14 +49,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
-        await update.message.reply_text(f"❌ مش أدمن\nID تبعك: {update.effective_user.id}")
+        await update.message.reply_text(f"❌ مش أدمن\nID: {update.effective_user.id}")
         return
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("📊 احصائيات", callback_data="stats")],
-        [InlineKeyboardButton("✅ اختبار الرفع", callback_data="test_upload")],
-        [InlineKeyboardButton("🔄 تحديث", callback_data="refresh")]
+        [InlineKeyboardButton("✅ اختبار الرفع", callback_data="test_upload")]
     ])
-    await update.message.reply_text("🔧 لوحة تحكم الأدمن - خطوة 1\n\nالبوت شغال 100% ✅\n\nاختر:", reply_markup=kb)
+    await update.message.reply_text("🔧 لوحة تحكم الأدمن - خطوة 1\n\nالبوت شغال 100% ✅", reply_markup=kb)
 
 async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -64,26 +70,25 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
         await q.edit_message_text("🔧 لوحة التحكم - شغالة!", reply_markup=kb)
     elif q.data == "stats":
-        await q.edit_message_text(f"📊 احصائيات خطوة 1:\n\n• البوت: شغال ✅\n• التوكن: موجود ✅\n• الأدمن: {q.from_user.id}\n• الوقت: يعمل\n\nالخطوة 1 نجحت!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data="go_admin")]]))
+        await q.edit_message_text(f"📊 احصائيات:\n• البوت: شغال ✅\n• الأدمن: {q.from_user.id}\n\nالخطوة 1 نجحت!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data="go_admin")]]))
     elif q.data == "test_upload":
-        await q.edit_message_text("✅ اختبار الرفع - لسه ما ضفنا رفع ملفات\n\nاذا شفت هالرسالة معناها الأزرار شغالة!\n\nالخطوة الجاية بنضيف رفع ملفات.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data="go_admin")]]))
+        await q.edit_message_text("✅ الأزرار شغالة!\n\nالخطوة الجاية بنضيف رفع ملفات.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data="go_admin")]]))
     elif q.data == "about":
-        await q.edit_message_text("🩺 بوت طبي - نسخة مصغرة خطوة 1\n\nالهدف: نتأكد انه يطلع Live على Render", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data="main")]]))
+        await q.edit_message_text("🩺 بوت طبي - خطوة 1", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data="main")]]))
     elif q.data == "main":
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔧 لوحة التحكم", callback_data="go_admin")]])
-        await q.edit_message_text("القائمة الرئيسية", reply_markup=kb)
-    elif q.data == "refresh":
-        await q.edit_message_text("🔄 تم التحديث!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔧 لوحة التحكم", callback_data="go_admin")]]))
+        await q.edit_message_text("القائمة", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔧 لوحة التحكم", callback_data="go_admin")]]))
 
 def main():
-    print("🚀 Starting minimal bot - Step 1", flush=True)
+    print("🚀 Starting minimal bot - Step 1 FIXED", flush=True)
+    # Create loop explicitly
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_cmd))
     app.add_handler(CallbackQueryHandler(buttons))
-    print("🚀 Bot polling started", flush=True)
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    print("🚀 Bot polling started - waiting for /start", flush=True)
+    app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
-  
