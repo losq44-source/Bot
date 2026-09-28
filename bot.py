@@ -5,21 +5,14 @@ from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters, ConversationHandler
 
-# ========= الإعدادات =========
-# حط التوكن هنا من @BotFather
 BOT_TOKEN = os.getenv("BOT_TOKEN") or "8124480552:AAHLPnKnH2_kuD58HI7SrhYrp3uEPdrrIcU"
-
-# حط الـ ID تبعك هنا - جيبه من @userinfobot
-# ID تبعك من الصورة: 424589091
 ADMIN_IDS = [424589091]
 
-# حالات المحادثة للرفع
 SELECT_SPEC, SELECT_TYPE, ENTER_TITLE, WAIT_FILE = range(4)
 ADD_COURSE_SPEC, ADD_COURSE_TITLE, ADD_COURSE_DATE, ADD_COURSE_LINK = range(4, 8)
 
 logging.basicConfig(level=logging.INFO)
 
-# ========= التخصصات A-Z =========
 SPECIALTIES = [
     {"code": "anatomy", "ar": "التشريح", "en": "Anatomy", "emoji": "🦴"},
     {"code": "biochem", "ar": "الكيمياء الحيوية", "en": "Biochemistry", "emoji": "🧬"},
@@ -55,39 +48,26 @@ MATERIAL_TYPES = {
     "video": "🎥 فيديوهات"
 }
 
-# ========= قاعدة البيانات =========
 def init_db():
     conn = sqlite3.connect("medical_bot.db")
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS specialties 
-                 (code TEXT PRIMARY KEY, ar_name TEXT, en_name TEXT, emoji TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS materials
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, specialty_code TEXT, type TEXT, title TEXT, 
-                  file_id TEXT, file_type TEXT, description TEXT, added_at TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS courses
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, specialty_code TEXT, title TEXT, 
-                  date TEXT, link TEXT, description TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS users
-                 (user_id INTEGER PRIMARY KEY, username TEXT, joined_at TEXT)''')
-    
-    # تعبئة التخصصات
+    c.execute("""CREATE TABLE IF NOT EXISTS specialties (code TEXT PRIMARY KEY, ar_name TEXT, en_name TEXT, emoji TEXT)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS materials (id INTEGER PRIMARY KEY AUTOINCREMENT, specialty_code TEXT, type TEXT, title TEXT, file_id TEXT, file_type TEXT, description TEXT, added_at TEXT)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS courses (id INTEGER PRIMARY KEY AUTOINCREMENT, specialty_code TEXT, title TEXT, date TEXT, link TEXT, description TEXT)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, username TEXT, joined_at TEXT)""")
     for s in SPECIALTIES:
-        c.execute("INSERT OR IGNORE INTO specialties VALUES (?,?,?,?)", 
-                  (s["code"], s["ar"], s["en"], s["emoji"]))
+        c.execute("INSERT OR IGNORE INTO specialties VALUES (?,?,?,?)", (s["code"], s["ar"], s["en"], s["emoji"]))
     conn.commit()
     conn.close()
 
 def is_admin(user_id):
     return user_id in ADMIN_IDS
 
-# ========= الكيبوردات =========
 def main_menu_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📚 التخصصات الطبية A-Z", callback_data="list_specialties")],
-        [InlineKeyboardButton("🗓️ مواعيد الدورات", callback_data="list_courses"),
-         InlineKeyboardButton("🔍 بحث سريع", callback_data="search_info")],
-        [InlineKeyboardButton("⭐ مفضلتي", callback_data="favorites"),
-         InlineKeyboardButton("📊 خطتي الدراسية", callback_data="my_plan")],
+        [InlineKeyboardButton("🗓️ مواعيد الدورات", callback_data="list_courses"), InlineKeyboardButton("🔍 بحث سريع", callback_data="search_info")],
+        [InlineKeyboardButton("⭐ مفضلتي", callback_data="favorites"), InlineKeyboardButton("📊 خطتي الدراسية", callback_data="my_plan")],
         [InlineKeyboardButton("ℹ️ عن البوت", callback_data="about")]
     ])
 
@@ -120,118 +100,70 @@ def admin_keyboard():
         [InlineKeyboardButton("🗑️ حذف ملف", callback_data="admin_delete_info")]
     ])
 
-# ========= الهاندلرز الأساسية =========
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     conn = sqlite3.connect("medical_bot.db")
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO users VALUES (?,?,?)", 
-              (user.id, user.username, datetime.now().isoformat()))
+    c.execute("INSERT OR IGNORE INTO users VALUES (?,?,?)", (user.id, user.username, datetime.now().isoformat()))
     conn.commit()
     conn.close()
-
-    text = f"""أهلاً دكتور {user.first_name} 🩺👋
-
-مرحباً بك في **المساعد الطبي الشامل**
-
-مكتبتك الطبية الكاملة من A to Z:
-• 24 تخصص طبي
-• ملخصات وكتب وخطط
-• بنك أسئلة وفيديوهات
-• مواعيد دورات وأنشطة
-
-⚠️ *تنبيه: هذا البوت تعليمي فقط ولا يغني عن استشارة طبية*
-
-اختر من القائمة:"""
-    
+    text = f"أهلاً دكتور {user.first_name} 🩺👋\n\nمرحباً بك في **المساعد الطبي الشامل**\n\nمكتبتك الطبية الكاملة من A to Z:\n• 24 تخصص طبي\n• ملخصات وكتب وخطط\n• بنك أسئلة وفيديوهات\n• مواعيد دورات وأنشطة\n\n⚠️ *تنبيه: هذا البوت تعليمي فقط*\n\nاختر من القائمة:"
     await update.message.reply_text(text, reply_markup=main_menu_keyboard(), parse_mode="Markdown")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
-
     if data == "main_menu":
-        await query.edit_message_text("القائمة الرئيسية:", reply_markup=main_menu_keyboard())
-    
+        await query.edit_message_text("القائمة الرئيسية 🩺", reply_markup=main_menu_keyboard())
     elif data == "list_specialties":
         await query.edit_message_text("📚 اختر التخصص:", reply_markup=specialties_keyboard())
-    
     elif data.startswith("spec_"):
-        code = data.split("_")[1]
-        conn = sqlite3.connect("medical_bot.db")
-        c = conn.cursor()
-        c.execute("SELECT ar_name, emoji FROM specialties WHERE code=?", (code,))
-        row = c.fetchone()
-        conn.close()
-        if row:
-            name, emoji = row
-            await query.edit_message_text(
-                f"{emoji} **{name}**\n\nاختر نوع المحتوى:",
-                reply_markup=specialty_content_keyboard(code),
-                parse_mode="Markdown"
-            )
-    
-    elif data.startswith("mat_"):
-        _, spec_code, mat_type = data.split("_", 2)
-        conn = sqlite3.connect("medical_bot.db")
-        c = conn.cursor()
-        c.execute("SELECT id, title FROM materials WHERE specialty_code=? AND type=? ORDER BY added_at DESC", 
-                  (spec_code, mat_type))
-        materials = c.fetchall()
-        conn.close()
-
-        if not materials:
-            kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data=f"spec_{spec_code}")]])
-            await query.edit_message_text(
-                f"لا يوجد محتوى بعد في {MATERIAL_TYPES[mat_type]}\nاطلب من الأدمن يرفع ملفات.",
-                reply_markup=kb
-            )
+        spec_code = data.split("_")[1]
+        spec = next((s for s in SPECIALTIES if s["code"] == spec_code), None)
+        if not spec:
+            await query.edit_message_text("تخصص غير موجود", reply_markup=specialties_keyboard())
             return
-        
-        buttons = []
-        for mid, title in materials[:20]:  # أول 20 ملف
-            buttons.append([InlineKeyboardButton(f"📄 {title}", callback_data=f"file_{mid}")])
-        buttons.append([InlineKeyboardButton("⬅️ رجوع", callback_data=f"spec_{spec_code}")])
-        await query.edit_message_text(
-            f"{MATERIAL_TYPES[mat_type]} - {len(materials)} ملف:",
-            reply_markup=InlineKeyboardMarkup(buttons)
-        )
-
-    elif data.startswith("file_"):
-        mid = int(data.split("_")[1])
+        await query.edit_message_text(f"{spec['emoji']} **{spec['ar']} - {spec['en']}**\n\nاختر نوع المادة:", reply_markup=specialty_content_keyboard(spec_code), parse_mode="Markdown")
+    elif data.startswith("mat_"):
+        _, spec_code, type_code = data.split("_")
         conn = sqlite3.connect("medical_bot.db")
         c = conn.cursor()
-        c.execute("SELECT title, file_id, file_type, description FROM materials WHERE id=?", (mid,))
+        c.execute("SELECT id, title FROM materials WHERE specialty_code=? AND type=? ORDER BY id DESC LIMIT 20", (spec_code, type_code))
+        rows = c.fetchall()
+        conn.close()
+        if not rows:
+            await query.edit_message_text("لا يوجد ملفات في هذا القسم حالياً.\nاستخدم /admin لرفع ملفات.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data=f"spec_{spec_code}")]]))
+            return
+        buttons = []
+        for mid, title in rows:
+            buttons.append([InlineKeyboardButton(title[:50], callback_data=f"file_{mid}")])
+        buttons.append([InlineKeyboardButton("⬅️ رجوع", callback_data=f"spec_{spec_code}")])
+        await query.edit_message_text(f"📂 ملفات {type_code}:", reply_markup=InlineKeyboardMarkup(buttons))
+    elif data.startswith("file_"):
+        fid = int(data.split("_")[1])
+        conn = sqlite3.connect("medical_bot.db")
+        c = conn.cursor()
+        c.execute("SELECT title, file_id, file_type FROM materials WHERE id=?", (fid,))
         row = c.fetchone()
         conn.close()
-        if row:
-            title, file_id, file_type, desc = row
-            caption = f"📚 **{title}**\n\n{desc or ''}\n\n_المساعد الطبي الشامل_"
-            try:
-                if file_type == "document":
-                    await context.bot.send_document(chat_id=query.message.chat_id, document=file_id, caption=caption, parse_mode="Markdown")
-                elif file_type == "photo":
-                    await context.bot.send_photo(chat_id=query.message.chat_id, photo=file_id, caption=caption, parse_mode="Markdown")
-                elif file_type == "video":
-                    await context.bot.send_video(chat_id=query.message.chat_id, video=file_id, caption=caption, parse_mode="Markdown")
-                else:
-                    await context.bot.send_document(chat_id=query.message.chat_id, document=file_id, caption=caption, parse_mode="Markdown")
-            except Exception as e:
-                await query.message.reply_text(f"خطأ في إرسال الملف: {e}\nقد يكون الملف قديم، اطلب من الأدمن إعادة رفعه.")
-
+        if not row:
+            await query.edit_message_text("الملف غير موجود")
+            return
+        title, file_id, ftype = row
+        try:
+            if ftype == "photo":
+                await context.bot.send_photo(chat_id=query.message.chat_id, photo=file_id, caption=title)
+            elif ftype == "video":
+                await context.bot.send_video(chat_id=query.message.chat_id, video=file_id, caption=title)
+            else:
+                await context.bot.send_document(chat_id=query.message.chat_id, document=file_id, caption=title)
+        except Exception as e:
+            await query.message.reply_text(f"خطأ في إرسال الملف: {e}")
     elif data == "about":
-        await query.edit_message_text(
-            "ℹ️ **المساعد الطبي الشامل**\n\nبوت تعليمي لطلاب الطب\nيحتوي 24 تخصص + ملخصات + كتب + خطط + دورات\n\nتم تطويره بواسطة Meta AI\n\nللدعم: /admin",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data="main_menu")]]),
-            parse_mode="Markdown"
-        )
+        await query.edit_message_text("🤖 **بوت Future Medical Hub**\n\nمطور لطلاب الطب - 24 تخصص\nللدعم: @s_er6j\n\n⚠️ تعليمي فقط", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data="main_menu")]]), parse_mode="Markdown")
     elif data == "search_info":
-        await query.edit_message_text(
-            "🔍 **البحث السريع**\n\nأرسل أي كلمة في الشات مثل:\n`اناتومي` أو `فارما ملخص` أو `جراحة كتاب`\n\nوراح أبحث لك في كل المكتبة.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data="main_menu")]]),
-            parse_mode="Markdown"
-        )
+        await query.edit_message_text("🔍 اكتب اسم المادة اللي بتدور عليها في الشات مباشرة (مثلاً: اناتومي) و راح أبحث لك.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data="main_menu")]]))
     elif data == "list_courses":
         conn = sqlite3.connect("medical_bot.db")
         c = conn.cursor()
@@ -246,7 +178,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 txt += f"• {title} - {date}\n{link}\n\n"
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ رجوع", callback_data="main_menu")]]), parse_mode="Markdown")
 
-# ========= البحث النصي =========
 async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower()
     if text.startswith("/"):
@@ -264,7 +195,6 @@ async def search_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         buttons.append([InlineKeyboardButton(f"{title} ({spec})", callback_data=f"file_{mid}")])
     await update.message.reply_text(f"🔍 نتائج البحث عن '{text}':", reply_markup=InlineKeyboardMarkup(buttons))
 
-# ========= لوحة الأدمن - رفع ملفات =========
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
         await update.message.reply_text("❌ هذا الأمر للأدمن فقط.")
@@ -314,7 +244,6 @@ async def admin_upload_file_received(update: Update, context: ContextTypes.DEFAU
     spec = context.user_data["upload_spec"]
     typ = context.user_data["upload_type"]
     title = context.user_data["upload_title"]
-    
     file_id = None
     file_type = "document"
     if update.message.document:
@@ -326,18 +255,15 @@ async def admin_upload_file_received(update: Update, context: ContextTypes.DEFAU
     elif update.message.video:
         file_id = update.message.video.file_id
         file_type = "video"
-    
     if not file_id:
         await update.message.reply_text("أرسل ملف صحيح PDF أو صورة أو فيديو")
         return WAIT_FILE
-
     conn = sqlite3.connect("medical_bot.db")
     c = conn.cursor()
     c.execute("INSERT INTO materials (specialty_code, type, title, file_id, file_type, description, added_at) VALUES (?,?,?,?,?,?,?)",
               (spec, typ, title, file_id, file_type, f"تمت الإضافة بواسطة الأدمن", datetime.now().isoformat()))
     conn.commit()
     conn.close()
-
     await update.message.reply_text(f"✅ تم حفظ الملف بنجاح!\n\n📚 {title}\nفي {spec} - {typ}\n\nالطلاب الآن يقدرون يحملوه.")
     return ConversationHandler.END
 
@@ -345,7 +271,6 @@ async def cancel_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ تم إلغاء الرفع.")
     return ConversationHandler.END
 
-# ========= التشغيل =========
 def keep_alive():
     try:
         from flask import Flask
@@ -365,12 +290,11 @@ def main():
     init_db()
     keep_alive()
     if BOT_TOKEN == "ضع_التوكن_هنا" or len(BOT_TOKEN) < 20:
-        print("غير التوكن في اول الملف")
-        return
-    
+        print("التوكن ناقص - البوت في وضع الانتظار")
+        import time
+        while True:
+            time.sleep(60)
     app = Application.builder().token(BOT_TOKEN).build()
-
-    # محادثة رفع الملفات
     upload_conv = ConversationHandler(
         entry_points=[CallbackQueryHandler(admin_upload_start, pattern="^admin_upload$")],
         states={
@@ -382,14 +306,12 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel_upload)],
         per_message=False
     )
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(upload_conv)
     app.add_handler(CallbackQueryHandler(button_handler, pattern="^(main_menu|list_specialties|spec_|mat_|file_|about|search_info|list_courses|courses_)"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_handler))
-
-    print("🚀 البوت شغال...")
+    print("البوت شغال...")
     app.run_polling()
 
 if __name__ == "__main__":
