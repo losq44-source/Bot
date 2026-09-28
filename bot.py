@@ -347,14 +347,15 @@ async def cancel_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ========= التشغيل =========
 def keep_alive():
-    """سيرفر صغير عشان الاستضافة المجانية ما تطفي البوت"""
+    """سيرفر صغير عشان الاستضافة المجانية ما تطفي البوت - يشتغل على Render"""
     try:
         from flask import Flask
         from threading import Thread
         app_flask = Flask(__name__)
         @app_flask.route('/')
         def home(): return "Bot is alive 🩺"
-        Thread(target=lambda: app_flask.run(host='0.0.0.0', port=10000)).start()
+        port = int(os.environ.get("PORT", 10000))
+        Thread(target=lambda: app_flask.run(host='0.0.0.0', port=port)).start()
     except: pass
 
 def main():
@@ -391,3 +392,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
